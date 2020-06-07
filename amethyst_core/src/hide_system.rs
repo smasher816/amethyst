@@ -112,29 +112,27 @@ impl<'a> System<'a> for HideHierarchySystem {
                     self_manually_hidden.add(entity.id());
                 }
 
-                let parent_entity = parents
-                    .get(*entity)
-                    .expect(
-                        "Unreachable: All entities in `ParentHierarchy` should also be in \
-                         `Parents`",
-                    )
-                    .entity;
-                let parent_dirty = self_marked_as_modified.contains(parent_entity.id());
-                let parent_hidden = hidden.get(parent_entity);
-                let parent_is_manually_hidden =
-                    parent_hidden.as_ref().map_or(false, |p| !p.is_propagated);
-                if parent_is_manually_hidden {
-                    self_manually_hidden.add(parent_entity.id());
-                    self_manually_hidden.add(entity.id());
-                }
+                if let Some(parent) = parents.get(*entity) {
+                    let parent_entity = parent.entity;
+                    let parent_dirty = self_marked_as_modified.contains(parent_entity.id());
+                    let parent_hidden = hidden.get(parent_entity);
+                    let parent_is_manually_hidden =
+                        parent_hidden.as_ref().map_or(false, |p| !p.is_propagated);
+                    if parent_is_manually_hidden {
+                        self_manually_hidden.add(parent_entity.id());
+                        self_manually_hidden.add(entity.id());
+                    }
 
-                if parent_dirty && !self_is_manually_hidden {
-                    if parent_hidden.is_some() {
-                        if let Err(e) = hidden.insert(*entity, HiddenPropagate::new_propagated()) {
-                            error!("Failed to automatically add `HiddenPropagate`: {:?}", e);
+                    if parent_dirty && !self_is_manually_hidden {
+                        if parent_hidden.is_some() {
+                            if let Err(e) =
+                                hidden.insert(*entity, HiddenPropagate::new_propagated())
+                            {
+                                error!("Failed to automatically add `HiddenPropagate`: {:?}", e);
+                            }
+                        } else {
+                            hidden.remove(*entity);
                         }
-                    } else {
-                        hidden.remove(*entity);
                     }
                 }
             }
